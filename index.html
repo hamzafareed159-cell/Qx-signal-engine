@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#0a0a0f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="QX Signals"/>
+<title>Quotex Signal Engine</title>
+<link rel="manifest" href="manifest.json"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0a0a0f;
+    --surface:#13131a;
+    --card:#1a1a24;
+    --border:#2a2a3a;
+    --t1:#f0f0f5;
+    --t2:#8888aa;
+    --t3:#55556a;
+    --buy:#00c27a;
+    --sell:#ff4757;
+    --amber:#f5a623;
+    --blue:#378ADD;
+    --buy-bg:#002a1a;
+    --sell-bg:#2a0008;
+    --amber-bg:#2a1a00;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow-x:hidden}
+  body{display:flex;flex-direction:column;min-height:100vh}
+
+  /* HEADER */
+  .header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px 12px;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:100;
+  }
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-icon{width:34px;height:34px;border-radius:10px;background:var(--buy);display:flex;align-items:center;justify-content:center}
+  .logo-icon svg{width:20px;height:20px;fill:none;stroke:#0a0a0f;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+  .logo-text{font-size:15px;font-weight:600;color:var(--t1);letter-spacing:-.3px}
+  .logo-sub{font-size:11px;color:var(--t2);margin-top:1px}
+  .live-pill{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;background:var(--card);border:1px solid var(--border)}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--buy);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+  .live-time{font-size:13px;font-weight:600;color:var(--t1);font-variant-numeric:tabular-nums;letter-spacing:.5px}
+
+  /* SCROLL BODY */
+  .scroll{flex:1;overflow-y:auto;padding:14px 14px 100px}
+
+  /* SECTION LABEL */
+  .sec-label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-left:2px}
+
+  /* CONTROLS */
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .ctrl{background:var(--card);border-radius:12px;padding:10px 12px;border:1px solid var(--border)}
+  .ctrl label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:6px}
+  .ctrl select{width:100%;background:transparent;border:none;color:var(--t1);font-size:13px;font-weight:500;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer}
+  .ctrl select option{background:#1a1a24;color:#f0f0f5}
+  .ctrl-full{grid-column:1/-1}
+
+  /* CANDLE SECTION */
+  .candle-grid{display:grid;grid-template-columns:3fr 2fr;gap:8px;margin-bottom:16px}
+  .panel{background:var(--card);border-radius:14px;padding:12px 14px;border:1px solid var(--border)}
+  .panel-title{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px}
+  .candle-times{display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:6px;font-variant-numeric:tabular-nums}
+  .track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:5px}
+  .bar{height:100%;border-radius:3px;transition:width .9s linear}
+  .atrack{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+  .abar{height:100%;border-radius:2px;background:var(--amber);transition:width .9s linear}
+  .cbot{display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:5px;font-variant-numeric:tabular-nums}
+  .next-panel{display:flex;flex-direction:column;justify-content:space-between}
+  .next-time{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--t1);letter-spacing:-1px;margin-top:4px}
+  .cd-wrap{margin-top:6px}
+  .cd-num{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--amber)}
+  .cd-lbl{font-size:10px;color:var(--t2);margin-top:2px}
+
+  /* MAIN SIGNAL CARD */
+  .sig-card{border-radius:18px;border:1.5px solid var(--border);background:var(--card);padding:16px;margin-bottom:16px;transition:border-color .3s,background .3s}
+  .sig-card.state-buy{border-color:var(--buy);background:var(--buy-bg)}
+  .sig-card.state-sell{border-color:var(--sell);background:var(--sell-bg)}
+  .sig-card.state-alert{border-color:var(--amber);background:var(--amber-bg)}
+  .sc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  .sc-meta{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
+  .sig-dir{font-size:36px;font-weight:700;line-height:1;letter-spacing:-1px}
+  .d-buy{color:var(--buy)}.d-sell{color:var(--sell)}.d-wait{color:var(--t2)}
+  .sig-tag{font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:.5px;white-space:nowrap}
+  .t-wait{background:var(--surface);color:var(--t2)}
+  .t-alert{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)}
+  .t-buy{background:var(--buy-bg);color:var(--buy);border:1px solid var(--buy)}
+  .t-sell{background:var(--sell-bg);color:var(--sell);border:1px solid var(--sell)}
+  .t-skip{background:#1a1040;color:#7F77DD;border:1px solid #534AB7}
+  .sig-reason{font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:12px;margin-top:6px}
+  .conf-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .conf-track{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+  .conf-fill{height:100%;border-radius:3px;transition:width .5s}
+  .conf-pct{font-size:15px;font-weight:700;min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+  .str-row{display:flex;align-items:center;gap:8px}
+  .str-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;min-width:62px}
+  .str-bars{display:flex;gap:3px;flex:1}
+  .str-bar{height:14px;border-radius:3px;flex:1;background:var(--border);transition:background .3s}
+
+  /* FILTERS */
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .fbadge{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px}
+  .fb-pass{background:#002a1a;color:var(--buy);border:1px solid #005030}
+  .fb-fail{background:#2a0008;color:var(--sell);border:1px solid #600015}
+  .fb-na{background:var(--card);color:var(--t3);border:1px solid var(--border)}
+
+  /* INDICATORS */
+  .inds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .ind{background:var(--card);border-radius:12px;padding:10px 12px;border-left:3px solid transparent;border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .ind.ibuy{border-left-color:var(--buy)}
+  .ind.isell{border-left-color:var(--sell)}
+  .ind-name{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .ind-val{font-size:13px;font-weight:600}
+  .iv-buy{color:var(--buy)}.iv-sell{color:var(--sell)}.iv-neut{color:var(--t2)}
+
+  /* HISTORY */
+  .hist{background:var(--card);border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:16px}
+  .hist-head{display:grid;grid-template-columns:2fr 1.2fr .9fr 1.1fr;padding:9px 14px;background:var(--surface);font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
+  .hist-row{display:grid;grid-template-columns:2fr 1.2fr .9fr 1.1fr;padding:10px 14px;font-size:12px;border-top:1px solid var(--border);color:var(--t1);align-items:center}
+  .hbadge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700}
+  .hb-buy{background:var(--buy-bg);color:var(--buy)}
+  .hb-sell{background:var(--sell-bg);color:var(--sell)}
+  .hb-skip{background:#1a1040;color:#7F77DD}
+
+  /* FOOTER */
+  .footer{font-size:11px;color:var(--t3);text-align:center;padding:10px 16px 20px;line-height:1.5}
+
+  /* BOTTOM NAV BAR look */
+  .bottom-bar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:var(--surface);
+    border-top:1px solid var(--border);
+    padding:10px 20px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--t3);
+    z-index:99;
+  }
+  .warn-icon{color:var(--amber);margin-right:5px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">QX Signal Engine</div>
+      <div class="logo-sub">1-min binary · pro confluence</div>
+    </div>
+  </div>
+  <div class="live-pill">
+    <div class="live-dot"></div>
+    <span class="live-time" id="clk">--:--:--</span>
+  </div>
+</div>
+
+<div class="scroll">
+
+  <div style="margin-bottom:10px">
+    <div class="sec-label">Configuration</div>
+    <div class="controls">
+      <div class="ctrl">
+        <label>Asset pair</label>
+        <select id="pair" onchange="onChange()">
+          <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
+          <option>AUD/USD</option><option>USD/CAD</option><option>EUR/GBP</option>
+          <option>NZD/USD</option><option>BTC/USD</option><option>ETH/USD</option>
+          <option>Gold (XAU/USD)</option><option>Oil (WTI)</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>Session</label>
+        <select id="session" onchange="onChange()">
+          <option>London–NY overlap</option><option>London</option>
+          <option>New York</option><option>Tokyo</option><option>Sydney</option>
+        </select>
+      </div>
+      <div class="ctrl ctrl-full">
+        <label>Market type</label>
+        <select id="mtype" onchange="onChange()">
+          <option>Trending</option><option>Ranging</option>
+          <option>High volatility</option><option>Low volatility</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:10px">
+    <div class="sec-label">Candle clock</div>
+    <div class="candle-grid">
+      <div class="panel">
+        <div class="panel-title">Current candle</div>
+        <div class="candle-times">
+          <span id="cStart">--:--</span>
+          <span id="pbSec" style="font-variant-numeric:tabular-nums">0s</span>
+          <span id="cEnd">--:--</span>
+        </div>
+        <div class="track"><div class="bar" id="pbFill" style="width:0%;background:var(--blue)"></div></div>
+        <div class="atrack"><div class="abar" id="azFill" style="width:0%"></div></div>
+        <div class="cbot">
+          <span id="azLbl" style="color:var(--amber);font-weight:600"></span>
+          <span id="pbPct">0%</span>
+        </div>
+      </div>
+      <div class="panel next-panel">
+        <div class="panel-title">Next opens</div>
+        <div class="next-time" id="nextTime">--:--:--</div>
+        <div class="cd-wrap" id="cdWrap" style="display:none">
+          <div class="cd-num" id="cdNum">10</div>
+          <div class="cd-lbl">secs · enter now</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:10px">
+    <div class="sec-label">Signal</div>
+    <div class="sig-card" id="sigCard">
+      <div class="sc-top">
+        <div>
+          <div class="sc-meta">Next 1-min candle</div>
+          <div class="sig-dir d-wait" id="sigDir">—</div>
+        </div>
+        <span class="sig-tag t-wait" id="sigTag">Waiting</span>
+      </div>
+      <div class="sig-reason" id="sigReason">Signal fires 10 seconds before candle opens</div>
+      <div class="conf-row">
+        <div class="conf-track"><div class="conf-fill" id="confFill" style="width:0%"></div></div>
+        <div class="conf-pct" id="confPct" style="color:var(--t2)">—</div>
+      </div>
+      <div class="str-row">
+        <span class="str-lbl">Strength</span>
+        <div class="str-bars" id="strBars">
+          <div class="str-bar"></div><div class="str-bar"></div><div class="str-bar"></div>
+          <div class="str-bar"></div><div class="str-bar"></div><div class="str-bar"></div>
+          <div class="str-bar"></div><div class="str-bar"></div><div class="str-bar"></div>
+          <div class="str-bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:10px">
+    <div class="sec-label">Confluence filters</div>
+    <div class="filters" id="filterRow">
+      <span class="fbadge fb-na">Trend —</span>
+      <span class="fbadge fb-na">Momentum —</span>
+      <span class="fbadge fb-na">Volatility —</span>
+      <span class="fbadge fb-na">Confluence —</span>
+      <span class="fbadge fb-na">Session —</span>
+    </div>
+  </div>
+
+  <div style="margin-bottom:10px">
+    <div class="sec-label">Indicators (8)</div>
+    <div class="inds" id="indGrid">
+      <div class="ind"><div class="ind-name">RSI 14</div><div class="ind-val iv-neut">—</div></div>
+      <div class="ind"><div class="ind-name">MACD</div><div class="ind-val iv-neut">—</div></div>
+      <div class="ind"><div class="ind-name">Bollinger</div><div class="ind-val iv-neut">—</div></div>
+      <div class="ind"><div class="ind-name">EMA 5/20</div><div class="ind-val iv-neut">—</div></div>
+      <div class="ind"><div class="ind-name">Stochastic</div><div class="ind-val iv-neut">—</div></div>
+      <div class="ind"><div class="ind-name">CCI 20</div><div class="ind-val iv-neut">—</div></div>
+      <div class="ind"><div class="ind-name">ATR</div><div class="ind-val iv-neut">—</div></div>
+      <div class="ind"><div class="ind-name">S/R Level</div><div class="ind-val iv-neut">—</div></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:10px">
+    <div class="sec-label">Signal history</div>
+    <div class="hist" id="histPanel">
+      <div class="hist-head"><span>Asset</span><span>Signal</span><span>Conf.</span><span>Candle</span></div>
+      <div style="padding:16px;text-align:center;font-size:12px;color:var(--t3)">History appears after each candle</div>
+    </div>
+  </div>
+
+  <div class="footer">⚠ Educational reference only — not financial advice.<br>Binary options carry significant risk of loss.</div>
+</div>
+
+<div class="bottom-bar">
+  <span class="warn-icon">⚡</span>
+  <span id="bottomMsg">Synced to candle clock · signal fires at :50 of each minute</span>
+</div>
+
+<script>
+const IND_NAMES=["RSI 14","MACD","Bollinger","EMA 5/20","Stochastic","CCI 20","ATR","S/R Level"];
+var hist=[],lastMin=-1,alertFired=false,sig=null,seed=Math.random();
+
+function pz(n){return n<10?'0'+n:''+n}
+function sr(s,o){var x=Math.sin(s*9301+(o||0)*49297+1)*233280;return x-Math.floor(x)}
+
+function buildSig(){
+  seed=Math.random();
+  var s=seed;
+  var rsi=Math.round(25+sr(s,1)*50);
+  var macd=parseFloat((-0.9+sr(s,2)*1.8).toFixed(3));
+  var bbI=Math.floor(sr(s,3)*3);
+  var ema=sr(s,4)>0.5;
+  var stoch=Math.round(sr(s,5)*100);
+  var cci=parseFloat((-150+sr(s,6)*300).toFixed(1));
+  var atrI=Math.floor(sr(s,7)*3);
+  var atr=["Expanding","Contracting","Stable"][atrI];
+  var srI=Math.floor(sr(s,8)*3);
+  var srLvl=["Near support","Near resistance","Mid-range"][srI];
+  var session=document.getElementById('session').value;
+  var mtype=document.getElementById('mtype').value;
+  var pair=document.getElementById('pair').value;
+  var sessBonus=["London–NY overlap","London","New York"].indexOf(session)>=0?1:0;
+
+  var indBull=[rsi<50,macd>0,bbI===0,ema,stoch<50,cci<0,atrI===0,srI===0];
+  var bulls=indBull.filter(function(b){return b}).length;
+  var bears=8-bulls;
+
+  var trendOk=Math.abs(bulls-bears)>=3;
+  var momOk=Math.abs(macd)>0.25&&(rsi<38||rsi>62);
+  var volOk=atr!=="Contracting"||mtype==="High volatility";
+  var confOk=bulls>=5||bears>=5;
+  var sessOk=sessBonus===1;
+  var filters=[trendOk,momOk,volOk,confOk,sessOk];
+  var passCount=filters.filter(function(f){return f}).length;
+  var skip=!trendOk||!confOk;
+
+  var dir,dClass,tagClass,tagTxt,confColor,conf;
+  if(skip){
+    dir="— Skip";dClass="d-wait";tagClass="t-skip";tagTxt="SKIP";conf=0;confColor="#555";
+  } else if(bulls>bears){
+    dir="↑ Buy (Call)";dClass="d-buy";tagClass="t-buy";tagTxt="BUY";confColor="var(--buy)";
+    conf=Math.min(93,Math.round(52+(bulls/8)*28+passCount*3+sessBonus*4));
+  } else {
+    dir="↓ Sell (Put)";dClass="d-sell";tagClass="t-sell";tagTxt="SELL";confColor="var(--sell)";
+    conf=Math.min(93,Math.round(52+(bears/8)*28+passCount*3+sessBonus*4));
+  }
+
+  var reasons=[];
+  if(!skip){
+    if(bulls>bears){
+      if(rsi<45)reasons.push("RSI "+rsi+" — bullish zone");
+      if(macd>0.25)reasons.push("MACD +"+macd+" bullish");
+      if(bbI===0)reasons.push("price at lower band");
+      if(ema)reasons.push("EMA bullish cross");
+      if(srI===0)reasons.push("support level nearby");
+    } else {
+      if(rsi>55)reasons.push("RSI "+rsi+" — bearish zone");
+      if(macd<-0.25)reasons.push("MACD "+macd+" bearish");
+      if(bbI===2)reasons.push("price at upper band");
+      if(!ema)reasons.push("EMA bearish cross");
+      if(srI===1)reasons.push("resistance level nearby");
+    }
+  }
+  var reasonTxt=skip?"Insufficient confluence — no clean setup this candle":reasons.slice(0,3).join(" · ")+(reasons.length>3?" +more":"");
+
+  var indVals=[
+    rsi<30?rsi+" oversold":rsi>70?rsi+" overbought":rsi+" neutral",
+    macd>0?"+"+macd+" bull":macd+" bear",
+    bbI===0?"At lower · buy":bbI===2?"At upper · sell":"Mid-range",
+    ema?"Bullish cross":"Bearish cross",
+    stoch<20?stoch+" oversold":stoch>80?stoch+" overbought":stoch+" neutral",
+    cci>100?"+"+cci+" OB":cci<-100?cci+" OS":cci+" neutral",
+    atr==="Expanding"?"Expanding vol":atr==="Contracting"?"Low vol caution":"Stable",
+    srLvl
+  ];
+
+  var grid=document.getElementById('indGrid');
+  grid.innerHTML='';
+  IND_NAMES.forEach(function(n,i){
+    var bc=indBull[i]?'ibuy':'isell';
+    var vc=indBull[i]?'iv-buy':'iv-sell';
+    grid.innerHTML+='<div class="ind '+bc+'"><div class="ind-name">'+n+'</div><div class="ind-val '+vc+'">'+indVals[i]+'</div></div>';
+  });
+
+  var fLabels=["Trend","Momentum","Volatility","Confluence","Session"];
+  var fr=document.getElementById('filterRow');
+  fr.innerHTML='';
+  filters.forEach(function(p,i){
+    fr.innerHTML+='<span class="fbadge '+(p?'fb-pass':'fb-fail')+'">'+(p?'✓':'✗')+' '+fLabels[i]+'</span>';
+  });
+
+  var bars=document.getElementById('strBars').children;
+  var lit=skip?0:Math.round((conf/93)*10);
+  var bColor=conf>=75?'var(--buy)':conf>=55?'var(--amber)':'var(--sell)';
+  for(var i=0;i<10;i++){
+    bars[i].style.background=i<lit?bColor:'var(--border)';
+  }
+
+  sig={dir:dir,dClass:dClass,tagClass:tagClass,tagTxt:tagTxt,conf:conf,confColor:confColor,
+       pair:pair,reasonTxt:reasonTxt,passCount:passCount,skip:skip};
+}
+
+function applyToCard(){
+  if(!sig)return;
+  document.getElementById('sigDir').textContent=sig.dir;
+  document.getElementById('sigDir').className='sig-dir '+sig.dClass;
+  document.getElementById('sigTag').textContent=sig.tagTxt;
+  document.getElementById('sigTag').className='sig-tag '+sig.tagClass;
+  document.getElementById('sigReason').textContent=sig.reasonTxt;
+  document.getElementById('confFill').style.width=sig.conf+'%';
+  document.getElementById('confFill').style.background=sig.confColor;
+  document.getElementById('confPct').textContent=sig.skip?'—':sig.conf+'%';
+  document.getElementById('confPct').style.color=sig.skip?'var(--t2)':sig.confColor;
+  var card=document.getElementById('sigCard');
+  if(sig.skip)card.className='sig-card';
+  else if(sig.dClass==='d-buy')card.className='sig-card state-buy';
+  else card.className='sig-card state-sell';
+}
+
+function resetCard(){
+  document.getElementById('sigDir').textContent='—';
+  document.getElementById('sigDir').className='sig-dir d-wait';
+  document.getElementById('sigTag').textContent='Waiting';
+  document.getElementById('sigTag').className='sig-tag t-wait';
+  document.getElementById('sigReason').textContent='Signal fires 10 seconds before candle opens';
+  document.getElementById('confFill').style.width='0%';
+  document.getElementById('confPct').textContent='—';
+  document.getElementById('confPct').style.color='var(--t2)';
+  document.getElementById('sigCard').className='sig-card';
+  document.getElementById('cdWrap').style.display='none';
+  document.getElementById('bottomMsg').textContent='Synced to candle clock · signal fires at :50 of each minute';
+}
+
+function onChange(){buildSig();}
+
+function addHistory(h,m){
+  hist.unshift({pair:sig.pair,sig:sig.tagTxt,conf:sig.conf,
+    cls:sig.skip?'hb-skip':sig.dClass==='d-buy'?'hb-buy':'hb-sell',
+    time:pz(h)+':'+pz(m)+':00'});
+  if(hist.length>6)hist.pop();
+  var tbl=document.getElementById('histPanel');
+  tbl.innerHTML='<div class="hist-head"><span>Asset</span><span>Signal</span><span>Conf.</span><span>Candle</span></div>';
+  hist.forEach(function(r){
+    tbl.innerHTML+='<div class="hist-row"><span>'+r.pair+'</span><span><span class="hbadge '+r.cls+'">'+r.sig+'</span></span><span>'+(r.conf||'—')+'%</span><span>'+r.time+'</span></div>';
+  });
+}
+
+function tick(){
+  var now=new Date();
+  var h=now.getHours(),m=now.getMinutes(),s=now.getSeconds();
+  document.getElementById('clk').textContent=pz(h)+':'+pz(m)+':'+pz(s);
+
+  var pct=Math.round((s/60)*100);
+  document.getElementById('pbFill').style.width=pct+'%';
+  document.getElementById('pbFill').style.background=s>=50?'var(--amber)':'var(--blue)';
+  document.getElementById('pbSec').textContent=s+'s';
+  document.getElementById('pbPct').textContent=pct+'%';
+  document.getElementById('cStart').textContent=pz(h)+':'+pz(m);
+  var nm=(m+1)%60,nh=m+1>=60?(h+1)%24:h;
+  document.getElementById('cEnd').textContent=pz(nh)+':'+pz(nm);
+  document.getElementById('nextTime').textContent=pz(nh)+':'+pz(nm)+':00';
+
+  var azPct=s>=50?((s-50)/10)*100:0;
+  document.getElementById('azFill').style.width=azPct+'%';
+  document.getElementById('azLbl').textContent=s>=50?'Alert zone':'';
+
+  if(m!==lastMin){lastMin=m;alertFired=false;buildSig();resetCard();}
+
+  if(s>=50&&!alertFired){
+    alertFired=true;
+    document.getElementById('sigCard').className='sig-card state-alert';
+    document.getElementById('sigTag').textContent='FIRING!';
+    document.getElementById('sigTag').className='sig-tag t-alert';
+    document.getElementById('bottomMsg').textContent='Signal firing now — enter on next candle open!';
+    if('vibrate' in navigator)navigator.vibrate([200,100,200]);
+  }
+
+  if(s>=50){
+    document.getElementById('cdWrap').style.display='block';
+    document.getElementById('cdNum').textContent=60-s;
+    applyToCard();
+  }
+
+  if(s===59&&sig)addHistory(h,m);
+}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(function(){});
+}
+
+buildSig();
+tick();
+setInterval(tick,1000);
+</script>
+</body>
+</html>
